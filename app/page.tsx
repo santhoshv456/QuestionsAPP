@@ -2,22 +2,23 @@
 
 import { useState, useEffect } from "react";
 
-const API_BASE_URL = "https://questionapp-hr5v.onrender.com"; // Centralized API base URL
+// const API_BASE_URL = "https://questionapp-hr5v.onrender.com"; // Centralized API base URL
+const API_BASE_URL = "http://localhost:8000"; // Centralized API base URL
 
 export default function QuestionsDashboard() {
   const [topics, setTopics] = useState<string[]>([]);
   const [questions, setQuestions] = useState<{ id: number; topic: string; text: string }[]>([]);
+  const [answers, setAnswers] = useState<{ [key: number]: string }>({});
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [newTopic, setNewTopic] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [loadingAnswers, setLoadingAnswers] = useState<{ [key: number]: boolean }>({});
 
-  // Fetch topics on initial load
   useEffect(() => {
     fetchTopics();
   }, []);
 
-  // Fetch questions when topic is selected
   useEffect(() => {
     if (selectedTopic) {
       fetchQuestions(selectedTopic);
@@ -30,7 +31,7 @@ export default function QuestionsDashboard() {
       const response = await fetch(`${API_BASE_URL}/api/topics`);
       if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
       const data = await response.json();
-      
+
       setTopics(data.map((t: { name: string }) => t.name));
     } catch (error) {
       console.error("Failed to fetch topics:", error);
@@ -38,7 +39,7 @@ export default function QuestionsDashboard() {
       setLoading(false);
     }
   };
-  
+
   const fetchQuestions = async (topic: string) => {
     try {
       setLoadingQuestions(true);
@@ -60,11 +61,11 @@ export default function QuestionsDashboard() {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
-  
+
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
-  
+
       await response.json();
       fetchTopics(); // Refresh topics after fetching
     } catch (error) {
@@ -74,9 +75,27 @@ export default function QuestionsDashboard() {
     }
   };
 
+  const fetchAnswer = async (questionId: number, questionText: string) => {
+    setLoadingAnswers((prev) => ({ ...prev, [questionId]: true })); // Set loading state
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/get-answer/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question_id: questionId, question_text: questionText }),
+      });
+
+      const data = await response.json();
+      setAnswers((prev) => ({ ...prev, [questionId]: data.answer }));
+    } catch (error) {
+      console.error("Error fetching answer:", error);
+    }
+
+    setLoadingAnswers((prev) => ({ ...prev, [questionId]: false })); // Remove loading state
+  };
+
   return (
     <div className="flex h-screen">
-      {/* Sidebar */}
       <div className="w-1/4 p-4 bg-gray-900 text-white overflow-y-auto">
         <h2 className="text-xl font-bold mb-4">Topics</h2>
         {loading ? (
@@ -89,9 +108,8 @@ export default function QuestionsDashboard() {
               topics.map((topic) => (
                 <button
                   key={topic}
-                  className={`w-full p-3 text-left rounded-md transition duration-200 ${
-                    selectedTopic === topic ? "bg-blue-500 text-white" : "bg-gray-700 hover:bg-gray-600"
-                  }`}
+                  className={`w-full p-3 text-left rounded-md transition duration-200 ${selectedTopic === topic ? "bg-blue-500 text-white" : "bg-gray-700 hover:bg-gray-600"
+                    }`}
                   onClick={() => setSelectedTopic(topic)}
                 >
                   {topic}
@@ -102,7 +120,6 @@ export default function QuestionsDashboard() {
         )}
       </div>
 
-      {/* Main Content */}
       <div className="w-3/4 p-6 bg-gray-100 overflow-y-auto">
         <div className="flex mb-4">
           <input
@@ -123,16 +140,26 @@ export default function QuestionsDashboard() {
         {loadingQuestions ? (
           <p className="text-gray-500">Loading questions...</p>
         ) : (
-          <div className="space-y-3">
-            {selectedTopic && questions.length === 0 ? (
-              <p className="text-gray-500">No questions available for this topic</p>
-            ) : (
-              questions.map((question) => (
-                <div key={question.id} className="p-4 bg-white text-black rounded shadow-md">
-                  {question.text}
+          <div className="space-y-4">
+            {questions.map((question) => (
+              <div key={question.id} className="border-b pb-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg text-black">{question.text}</span>
+                  <button
+                    onClick={() => fetchAnswer(question.id, question.text)}
+                    className="text-sm px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+                    disabled={loadingAnswers[question.id]} // Disable button when loading
+                  >
+                    {loadingAnswers[question.id] ? "Loading..." : "Answer"}
+                  </button>
                 </div>
-              ))
-            )}
+                {answers[question.id] && (
+                  <div className="mt-2 p-2 bg-gray-200 text-black rounded">
+                    {answers[question.id]}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
