@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 
-// const API_BASE_URL = "https://questionapp-hr5v.onrender.com"; // Centralized API base URL
-const API_BASE_URL = "http://localhost:8000"; // Centralized API base URL
+const API_BASE_URL = "https://questionapp-hr5v.onrender.com"; // Centralized API base URL
+//const API_BASE_URL = "http://localhost:8000"; // Centralized API base URL
 
 export default function QuestionsDashboard() {
   const [topics, setTopics] = useState<string[]>([]);
